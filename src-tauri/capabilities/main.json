@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capabilities for the pet and hub windows",
+  "windows": ["pet", "hub"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:tray:default",
+    "notification:default",
+    "notification:allow-notify",
+    "os:default",
+    "store:default",
+    "shell:allow-open"
+  ]
+}

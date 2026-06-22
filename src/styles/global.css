@@ -1,0 +1,26 @@
+/* Pet window is `transparent:true, decorations:false` (tauri.conf.json) —
+   html/body must stay fully transparent or the OS compositor shows a white
+   box behind the cat. Hub window (future) overrides background in its own
+   route component, not here. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
