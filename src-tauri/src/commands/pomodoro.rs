@@ -6,7 +6,11 @@ use serde::Serialize;
 use tauri::{Emitter, State};
 
 #[tauri::command]
-pub async fn pomodoro_start(state: State<'_, AppState>, phase: String, planned_seconds: i64) -> AppResult<PomodoroSession> {
+pub async fn pomodoro_start(
+    state: State<'_, AppState>,
+    phase: String,
+    planned_seconds: i64,
+) -> AppResult<PomodoroSession> {
     let phase = match phase.as_str() {
         "focus" => Phase::Focus,
         "break" => Phase::Break,
@@ -25,12 +29,18 @@ pub async fn pomodoro_start(state: State<'_, AppState>, phase: String, planned_s
 }
 
 #[tauri::command]
-pub async fn pomodoro_pause(state: State<'_, AppState>, session_id: i64) -> AppResult<PomodoroSession> {
+pub async fn pomodoro_pause(
+    state: State<'_, AppState>,
+    session_id: i64,
+) -> AppResult<PomodoroSession> {
     pomodoro_service::pause(&state.db, session_id).await
 }
 
 #[tauri::command]
-pub async fn pomodoro_resume(state: State<'_, AppState>, session_id: i64) -> AppResult<PomodoroSession> {
+pub async fn pomodoro_resume(
+    state: State<'_, AppState>,
+    session_id: i64,
+) -> AppResult<PomodoroSession> {
     pomodoro_service::resume(&state.db, session_id).await
 }
 
@@ -41,7 +51,11 @@ pub struct CompleteResponse {
 }
 
 #[tauri::command]
-pub async fn pomodoro_complete(state: State<'_, AppState>, session_id: i64, actual_seconds: i64) -> AppResult<CompleteResponse> {
+pub async fn pomodoro_complete(
+    state: State<'_, AppState>,
+    session_id: i64,
+    actual_seconds: i64,
+) -> AppResult<CompleteResponse> {
     let result = pomodoro_service::complete(&state.db, session_id, actual_seconds).await?;
 
     crate::services::analytics_service::track(
@@ -71,6 +85,10 @@ pub async fn pomodoro_complete(state: State<'_, AppState>, session_id: i64, actu
 }
 
 #[tauri::command]
-pub async fn pomodoro_history(state: State<'_, AppState>, from: Option<i64>, to: Option<i64>) -> AppResult<Vec<PomodoroSession>> {
+pub async fn pomodoro_history(
+    state: State<'_, AppState>,
+    from: Option<i64>,
+    to: Option<i64>,
+) -> AppResult<Vec<PomodoroSession>> {
     pomodoro_service::history(&state.db, from, to).await
 }

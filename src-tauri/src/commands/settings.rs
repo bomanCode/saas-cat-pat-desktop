@@ -16,8 +16,13 @@ pub async fn settings_get(state: State<'_, AppState>) -> AppResult<HashMap<Strin
 }
 
 #[tauri::command]
-pub async fn settings_update(state: State<'_, AppState>, key: String, value: Value) -> AppResult<()> {
-    let value_json = serde_json::to_string(&value).map_err(|e| crate::error::AppError::InvalidInput(e.to_string()))?;
+pub async fn settings_update(
+    state: State<'_, AppState>,
+    key: String,
+    value: Value,
+) -> AppResult<()> {
+    let value_json = serde_json::to_string(&value)
+        .map_err(|e| crate::error::AppError::InvalidInput(e.to_string()))?;
     sqlx::query("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
         .bind(&key)
         .bind(&value_json)

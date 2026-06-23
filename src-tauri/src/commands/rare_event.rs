@@ -6,7 +6,10 @@ use base64::Engine;
 use tauri::State;
 
 #[tauri::command]
-pub async fn rare_event_recent(state: State<'_, AppState>, limit: i64) -> AppResult<Vec<RareEventLogRow>> {
+pub async fn rare_event_recent(
+    state: State<'_, AppState>,
+    limit: i64,
+) -> AppResult<Vec<RareEventLogRow>> {
     rare_event_service::recent(&state.db, limit).await
 }
 
@@ -14,7 +17,11 @@ pub async fn rare_event_recent(state: State<'_, AppState>, limit: i64) -> AppRes
 /// canvas export) against a rare-event log row. The backend never captures
 /// or transmits the screenshot itself — see architecture.md §11 Privacy.
 #[tauri::command]
-pub async fn rare_event_save_screenshot(state: State<'_, AppState>, log_id: i64, path: String) -> AppResult<()> {
+pub async fn rare_event_save_screenshot(
+    state: State<'_, AppState>,
+    log_id: i64,
+    path: String,
+) -> AppResult<()> {
     rare_event_service::record_screenshot(&state.db, log_id, path).await
 }
 

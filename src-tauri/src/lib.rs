@@ -163,8 +163,11 @@ fn spawn_reminder_loop(app: AppHandle, pool: SqlitePool) {
 
 fn spawn_mood_loop(app: AppHandle, pool: SqlitePool) {
     use services::mood_service::{compute_mood, log_mood, MoodSignals};
-    let last_interaction = Arc::new(std::sync::atomic::AtomicI64::new(chrono::Utc::now().timestamp()));
-    let interactions_window: Arc<std::sync::Mutex<Vec<i64>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let last_interaction = Arc::new(std::sync::atomic::AtomicI64::new(
+        chrono::Utc::now().timestamp(),
+    ));
+    let interactions_window: Arc<std::sync::Mutex<Vec<i64>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
 
     // Listen for interaction events from the frontend (drag/click/pat) to
     // feed the mood signal — see pet_interaction analytics event.
@@ -185,8 +188,12 @@ fn spawn_mood_loop(app: AppHandle, pool: SqlitePool) {
         loop {
             tokio::time::sleep(Duration::from_secs(15)).await;
             let now = chrono::Utc::now();
-            let idle_seconds = now.timestamp() - last_interaction.load(std::sync::atomic::Ordering::Relaxed);
-            let interactions_last_hour = interactions_window.lock().map(|w| w.len() as u32).unwrap_or(0);
+            let idle_seconds = now.timestamp()
+                - last_interaction.load(std::sync::atomic::Ordering::Relaxed);
+            let interactions_last_hour = interactions_window
+                .lock()
+                .map(|w| w.len() as u32)
+                .unwrap_or(0);
 
             let focus_active: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM pomodoro_sessions WHERE phase='focus' AND status='running')",
@@ -290,12 +297,18 @@ fn spawn_analytics_flush_loop(pool: SqlitePool) {
             if api_key.is_empty() {
                 continue; // analytics opt-in / not configured — never block the app
             }
-            let host = std::env::var("POSTHOG_HOST").unwrap_or_else(|_| "https://app.posthog.com".to_string());
+            let host = std::env::var("POSTHOG_HOST")
+                .unwrap_or_else(|_| "https://app.posthog.com".to_string());
 
             match services::analytics_service::unflushed_batch(&pool, 100).await {
                 Ok(batch) if !batch.is_empty() => {
                     let ids: Vec<i64> = batch.iter().map(|e| e.id).collect();
-                    if services::analytics_service::flush_to_posthog(&client, &api_key, &host, &batch).await.is_ok() {
+                    if services::analytics_service::flush_to_posthog(
+                        &client, &api_key, &host, &batch,
+                    )
+                    .await
+                    .is_ok()
+                    {
                         let _ = services::analytics_service::mark_flushed(&pool, &ids).await;
                     }
                 }
