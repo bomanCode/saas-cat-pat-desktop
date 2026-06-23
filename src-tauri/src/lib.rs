@@ -19,9 +19,14 @@ pub struct AppState {
 }
 
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter("comnyang=info")
-        .init();
+    // `RUST_LOG` (e.g. `$env:RUST_LOG="comnyang=debug"` on Windows PowerShell)
+    // overrides the default `comnyang=info` filter without a rebuild — this
+    // matters for manual QA, where you often want debug-level logs for one
+    // run without recompiling. Was previously hardcoded to a literal string
+    // that silently ignored RUST_LOG entirely.
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("comnyang=info"));
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
