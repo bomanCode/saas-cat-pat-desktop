@@ -36,7 +36,11 @@ pub async fn memory_save(
 }
 
 #[tauri::command]
-pub async fn memory_search(state: State<'_, AppState>, query: String, tag: Option<String>) -> AppResult<Vec<AiMemoryEntry>> {
+pub async fn memory_search(
+    state: State<'_, AppState>,
+    query: String,
+    tag: Option<String>,
+) -> AppResult<Vec<AiMemoryEntry>> {
     memory_service::search(&state.db, &query, tag.as_deref(), 50).await
 }
 

@@ -14,7 +14,10 @@ pub async fn cat_get_state(state: State<'_, AppState>) -> AppResult<CatState> {
 }
 
 #[tauri::command]
-pub async fn cat_set_personality(state: State<'_, AppState>, personality: String) -> AppResult<CatState> {
+pub async fn cat_set_personality(
+    state: State<'_, AppState>,
+    personality: String,
+) -> AppResult<CatState> {
     let parsed = Personality::from_str(&personality)
         .ok_or_else(|| crate::error::AppError::InvalidInput(format!("unknown personality: {personality}")))?;
 
