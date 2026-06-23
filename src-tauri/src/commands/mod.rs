@@ -1,4 +1,5 @@
 pub mod achievement;
+pub mod ai;
 pub mod cat;
 pub mod memory;
 pub mod pomodoro;

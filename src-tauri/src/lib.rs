@@ -41,6 +41,9 @@ pub fn run() {
             commands::cat::cat_set_personality,
             commands::cat::cat_rename,
             commands::cat::xp_award,
+            commands::ai::ai_provider_set_key,
+            commands::ai::ai_provider_has_key,
+            commands::ai::ai_provider_delete_key,
             commands::pomodoro::pomodoro_start,
             commands::pomodoro::pomodoro_pause,
             commands::pomodoro::pomodoro_resume,
@@ -112,6 +115,10 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "quit" => app.exit(0),
             "open_hub" => {
+                if let Some(hub) = app.get_webview_window("hub") {
+                    let _ = hub.show();
+                    let _ = hub.set_focus();
+                }
                 let _ = app.emit("tray:open_hub", ());
             }
             "start_focus" => {

@@ -4,6 +4,10 @@
 // fast UI iteration) — see `mockBackend` below. This keeps every component
 // invoke-call-compatible whether or not the Rust backend is attached.
 
+import {
+  levelForXp,
+  growthStageForLevel,
+} from "@/lib/xp";
 import type {
   Achievement,
   AchievementWithProgress,
@@ -142,6 +146,16 @@ export const backend = {
   async settingsUpdate(key: string, value: unknown): Promise<void> {
     return isTauri() ? invokeReal("settings_update", { key, value }) : mock.settingsUpdate(key, value);
   },
+
+  async aiProviderSetKey(provider: string, apiKey: string): Promise<void> {
+    return isTauri() ? invokeReal("ai_provider_set_key", { provider, apiKey }) : mock.aiProviderSetKey(provider, apiKey);
+  },
+  async aiProviderHasKey(provider: string): Promise<boolean> {
+    return isTauri() ? invokeReal("ai_provider_has_key", { provider }) : mock.aiProviderHasKey(provider);
+  },
+  async aiProviderDeleteKey(provider: string): Promise<void> {
+    return isTauri() ? invokeReal("ai_provider_delete_key", { provider }) : mock.aiProviderDeleteKey(provider);
+  },
 };
 
 /** Subscribes to a Tauri-emitted event; no-ops outside Tauri. Returns an unsubscribe fn. */
@@ -182,27 +196,11 @@ let mockReminderSeq = 1;
 const mockReminders: Reminder[] = [];
 let mockMemorySeq = 1;
 const mockMemories: AiMemoryEntry[] = [];
+const mockApiKeys: Record<string, string> = {};
 const mockSettings: Record<string, unknown> = {
   distraction_patterns: ["youtube.com", "tiktok.com", "instagram.com", "facebook.com"],
 };
 
-function cumulativeXpForLevel(level: number): number {
-  if (level <= 0) return 0;
-  if (level <= 10) return 100 * level;
-  if (level <= 50) return 1000 + (level - 10) * 225;
-  return 10000 + (level - 50) * 450;
-}
-function levelForXp(xp: number): number {
-  let level = 1;
-  while (cumulativeXpForLevel(level + 1) <= xp) level++;
-  return level;
-}
-function growthStageForLevel(level: number): CatState["growth_stage"] {
-  if (level < 10) return "kitten";
-  if (level < 25) return "teen";
-  if (level < 50) return "adult";
-  return "legendary";
-}
 const XP_DEFAULTS: Record<XpSource, number> = {
   pomodoro: 20,
   reminder: 5,
@@ -372,6 +370,16 @@ const mock = {
   },
   async settingsUpdate(key: string, value: unknown) {
     mockSettings[key] = value;
+  },
+
+  async aiProviderSetKey(provider: string, apiKey: string) {
+    mockApiKeys[provider] = apiKey;
+  },
+  async aiProviderHasKey(provider: string) {
+    return Boolean(mockApiKeys[provider]?.trim());
+  },
+  async aiProviderDeleteKey(provider: string) {
+    delete mockApiKeys[provider];
   },
 };
 

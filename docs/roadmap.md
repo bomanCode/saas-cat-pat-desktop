@@ -31,9 +31,9 @@ Status reflects this repo as of this commit — update it as work lands.
 |---|---|---|
 | XP & growth formula (F06) | specification + implementer | ✅ piecewise-linear formula hits all 3 PRD anchors exactly + unit tests |
 | Pomodoro lifecycle (F07) | implementer-sparc-coder | ✅ Rust service (idempotent complete, crash reconciliation) + unit tests |
-| Pomodoro UI (widget, history) | implementer-sparc-coder | ✅ `PomodoroWidget.tsx` in Hub |
+| Pomodoro UI (widget, history) | implementer-sparc-coder | ✅ `PomodoroPanel.tsx` in Hub |
 | Smart Reminder (F08) | implementer-sparc-coder | ✅ Rust service (DST-safe repeat rules) + unit tests; ✅ `ReminderPanel.tsx` |
-| Companion Hub shell (nav, header) | implementer-sparc-coder | ✅ `HubApp.tsx` |
+| Companion Hub shell (nav, header) | implementer-sparc-coder | ✅ `HubApp.tsx`, wired into `routes.tsx` (replaces the earlier placeholder) |
 
 **Exit criteria**: a user can run a full focus/break cycle, see XP/level update live, and manage reminders — implemented; needs a real Tauri build to click through manually before sign-off.
 
@@ -46,10 +46,11 @@ Status reflects this repo as of this commit — update it as work lands.
 | AI presence detection (F10) | implementer-sparc-coder | ✅ pure classifier + unit tests; 🟡 OS watcher (`active-win-pos-rs`) compiles logically but **unverified on a real Windows/macOS/X11 machine** — no GUI/OS APIs in this sandbox |
 | Focus Guardian (F09) | implementer-sparc-coder | ✅ pure classifier + unit tests; same OS-watcher caveat as F10 |
 | AI Memory Vault (F11) | implementer-sparc-coder | ✅ Rust FTS5 service + unit tests; ✅ `MemoryVaultPanel.tsx` |
-| Achievement system (F13) | implementer-sparc-coder | ✅ Rust rule registry + unit tests; ✅ `AchievementPanel.tsx` |
-| Daily Story Engine (F12) | implementer-sparc-coder | ✅ offline template engine + unit tests; ✅ `StoryCard.tsx`; AI-enhanced mode wired to provider trait |
+| Achievement system (F13) | implementer-sparc-coder | ✅ Rust rule registry + unit tests; ✅ `AchievementPanel.tsx` + `AchievementToast` |
+| Daily Story Engine (F12) | implementer-sparc-coder | ✅ offline template engine + unit tests; ✅ `StoryPanel.tsx`; AI-enhanced mode wired to provider trait |
 | AI provider integrations | implementer-sparc-coder | ✅ Ollama/OpenAI/Claude/Gemini real HTTP implementations + keychain key storage; ⬜ not load-tested against live APIs |
-| Rare Event Engine (F14) | implementer-sparc-coder | ✅ probability table + unit tests; ✅ screenshot capture command (canvas → PNG → Pictures folder) |
+| Rare Event Engine (F14) | implementer-sparc-coder | ✅ probability table + unit tests; ✅ screenshot capture command (canvas → PNG → Pictures folder) + frontend capture button (`CatStage.tsx`) |
+| Pet-window integration layer | implementer-sparc-coder | ✅ `CatStage.tsx` now surfaces reminders, achievements, AI presence (client-debounced), focus nudges, and rare events as speech bubbles (`SpeechBubble.tsx`); double-click opens the Hub window |
 
 **Exit criteria**: AI Explorer/Pomodoro Master/etc. achievements unlock correctly, Memory Vault search is fast and correct, daily story generates once/day — all true in unit tests; F09/F10's OS integration is the single highest-remaining-risk item and needs dedicated manual QA on each target OS (see Production Checklist).
 
@@ -76,11 +77,12 @@ Status reflects this repo as of this commit — update it as work lands.
 | Rust unit tests (xp/mood/pomodoro/reminder/achievement/rare_event/memory/story/window_watcher/personality) | ✅ written, **not yet executed** — no Rust toolchain available in this build sandbox; must run `cargo test` on a real machine before merge |
 | Frontend unit tests (state machine/eye follow/physics) | ✅ written AND executed — `npx vitest run` passes 22/22 in this sandbox |
 | Frontend type-check | ✅ `npx tsc --noEmit` passes clean in this sandbox |
+| Frontend production build | ✅ `npm run build` (tsc + vite build) succeeds in this sandbox |
 | Rust compile check | ⬜ **not verified** — no `cargo`/Rust toolchain in this sandbox; run `cargo check` as the very first step on a dev machine |
-| CI pipeline | ✅ `.github/workflows/ci.yml` — runs both suites above on every push/PR |
-| Release pipeline | ✅ `.github/workflows/release.yml` — tag-triggered cross-platform Tauri build |
+| CI pipeline | ✅ `.github/workflows/ci.yml` — runs frontend (typecheck/test/build) + Rust (fmt/clippy/test) on every push/PR; **unexecuted by GitHub Actions until pushed** |
+| Release pipeline | ✅ `.github/workflows/release.yml` — tag-triggered cross-platform Tauri build via `tauri-apps/tauri-action`, creates a draft GitHub Release; **never run for real yet** |
 | GitHub issue backlog | ✅ `docs/github_issues.md` + `scripts/create_github_issues.sh` |
-| Production checklist | ✅ `PRODUCTION_CHECKLIST.md` |
+| Production checklist | ✅ `PRODUCTION_CHECKLIST.md` — see it for the full, honest pre-release gap list (code signing, payments, auto-update, etc. are NOT done) |
 | Manual OS-level QA (F09/F10 window watcher, notifications, tray) | ⬜ requires real Windows/macOS/Linux machines |
 
 **Honest summary of what "done" means in this repo**: every business-logic module (the Rust `services/` and TS `engine/`) is implemented AND test-covered, and those tests actually run and pass where a toolchain is available (frontend, in this sandbox). The Rust side has equally thorough tests but they're unexecuted here because there's no Rust toolchain in this build environment — that's the #1 thing to run before trusting any of it. The Hub/Pet UI is built and wired end-to-end through the mock backend (works in a plain browser via `npm run dev`), but has never run inside an actual Tauri window, so OS-chrome behaviors (transparency, always-on-top, tray, notifications, window watcher) are unverified by construction, not just untested.
