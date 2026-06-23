@@ -1,0 +1,120 @@
+# ============================================================
+# Comnyang 2.0 — Podman Compose Dev Environment
+# Compatible with: Podman 4+ on WSL2 Ubuntu / Windows 11
+# ============================================================
+#
+# USAGE:
+#   podman-compose up -d            # start all services
+#   podman-compose down             # stop + remove containers
+#   podman-compose logs -f dev      # follow dev container logs
+#   podman exec -it comnyang_dev bash  # shell into dev container
+#
+# WHY NOT RUN tauri dev INSIDE CONTAINER:
+#   Tauri requires a native OS window + GPU compositor.
+#   This file provides only:
+#     1. Persistent SQLite volume (shared with host app)
+#     2. Headless dev container for cargo check / npm build / tests
+#   Run `tauri dev` and `tauri build` on the HOST (WSL2 terminal
+#   or Windows native), never inside the container.
+#
+# WSL2 NOTES:
+#   - Podman on WSL2 runs rootless by default — no sudo needed.
+#   - Bind mounts use :z SELinux label for Podman compatibility.
+#   - host.containers.internal resolves to the WSL2 host IP,
+#     used here to reach Ollama if running on Windows host.
+# ============================================================
+
+version: "3.8"
+
+# ------------------------------------------------------------------
+# Named Volumes
+# ------------------------------------------------------------------
+volumes:
+  # Persistent SQLite data — survives container restarts.
+  # Mounted into the dev container AND bind-mounted to ./sqlite_data/
+  # on the host so `tauri dev` and cargo tests share the same seed db.
+  sqlite_data:
+    driver: local
+
+  # Cargo registry cache — avoids re-downloading crates on restart.
+  cargo_registry:
+    driver: local
+
+  # Cargo git cache
+  cargo_git:
+    driver: local
+
+# ------------------------------------------------------------------
+# Services
+# ------------------------------------------------------------------
+services:
+
+  # ----------------------------------------------------------------
+  # sqlite-init
+  # One-shot service: bootstraps the database from db/schema.sql
+  # the first time the volume is empty. Subsequent runs are no-ops.
+  # ----------------------------------------------------------------
+  sqlite-init:
+    image: keinos/sqlite3:latest
+    container_name: comnyang_sqlite_init
+    volumes:
+      - sqlite_data:/data
+      - ./db:/sql:ro,z
+    command: >
+      sh -c "
+        if [ ! -f /data/comnyang.db ]; then
+          echo 'Bootstrapping database from schema.sql...';
+          sqlite3 /data/comnyang.db < /sql/schema.sql;
+          echo 'Done.';
+        else
+          echo 'Database already exists — skipping init.';
+        fi
+      "
+    restart: "no"
+
+  # ----------------------------------------------------------------
+  # dev
+  # Headless container: Node 24 + Rust stable + system deps.
+  # Used for: cargo check, cargo fmt, cargo test, npm run build
+  #
+  # Does NOT run `tauri dev` — that needs a native OS window.
+  # ----------------------------------------------------------------
+  dev:
+    # ghcr.io/tauri-apps/tauri-community/builder includes Node +
+    # Rust + all webkit2gtk system deps pre-installed.
+    # Fallback: swap to `rust:1.87-bookworm` and install Node manually.
+    image: ghcr.io/tauri-apps/tauri-community/builder:latest
+    container_name: comnyang_dev
+    working_dir: /workspace
+    volumes:
+      # Live project source mount (edits on host are instant)
+      - .:/workspace:z
+      # Shared SQLite data from sqlite-init
+      - sqlite_data:/workspace/sqlite_data:z
+      # Cargo caches (persist across container rebuilds)
+      - cargo_registry:/usr/local/cargo/registry:z
+      - cargo_git:/usr/local/cargo/git:z
+    environment:
+      # Logging
+      - RUST_LOG=${RUST_LOG:-comnyang=info,sqlx=warn}
+      - RUST_BACKTRACE=${RUST_BACKTRACE:-1}
+      # Node
+      - NODE_ENV=${NODE_ENV:-development}
+      # Database (points at the shared sqlite_data volume)
+      - DATABASE_URL=sqlite:/workspace/sqlite_data/comnyang.db
+      # Analytics disabled inside container
+      - POSTHOG_API_KEY=
+      - POSTHOG_HOST=https://app.posthog.com
+      # AI keys forwarded from host .env (blank = disabled in container)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Ollama: reach host's running instance from inside container
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.containers.internal:11434}
+      # Speed up rare-event testing (1 min instead of 1 hour)
+      - COMNYANG_RARE_EVENT_INTERVAL_SECS=60
+    # Keep alive for interactive use
+    command: sleep infinity
+    depends_on:
+      - sqlite-init
+    restart: unless-stopped
