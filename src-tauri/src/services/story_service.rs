@@ -26,12 +26,11 @@ async fn summarize_today(pool: &SqlitePool) -> AppResult<DayActivitySummary> {
     let start_of_day = Local::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
     let start_ts = start_of_day.and_utc().timestamp();
 
-    let xp_earned: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(SUM(amount),0) FROM xp_events WHERE created_at >= ?",
-    )
-    .bind(start_ts)
-    .fetch_one(pool)
-    .await?;
+    let xp_earned: i64 =
+        sqlx::query_scalar("SELECT COALESCE(SUM(amount),0) FROM xp_events WHERE created_at >= ?")
+            .bind(start_ts)
+            .fetch_one(pool)
+            .await?;
 
     let pomodoros_completed: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM pomodoro_sessions WHERE status='completed' AND started_at >= ?",
@@ -96,12 +95,11 @@ fn pick_story(s: &DayActivitySummary) -> (&'static str, &'static str) {
 pub async fn get_or_generate_today(pool: &SqlitePool) -> AppResult<DailyStory> {
     let today = Local::now().format("%Y-%m-%d").to_string();
 
-    if let Some(existing) = sqlx::query_as::<_, DailyStory>(
-        "SELECT * FROM daily_stories WHERE story_date = ?",
-    )
-    .bind(&today)
-    .fetch_optional(pool)
-    .await?
+    if let Some(existing) =
+        sqlx::query_as::<_, DailyStory>("SELECT * FROM daily_stories WHERE story_date = ?")
+            .bind(&today)
+            .fetch_optional(pool)
+            .await?
     {
         return Ok(existing);
     }
@@ -168,7 +166,9 @@ mod tests {
         let pool = crate::db::init_test_pool().await;
         use crate::services::pomodoro_service::{self, Phase};
         for _ in 0..4 {
-            let s = pomodoro_service::start(&pool, Phase::Focus, 60).await.unwrap();
+            let s = pomodoro_service::start(&pool, Phase::Focus, 60)
+                .await
+                .unwrap();
             pomodoro_service::complete(&pool, s.id, 60).await.unwrap();
         }
         let story = get_or_generate_today(&pool).await.unwrap();

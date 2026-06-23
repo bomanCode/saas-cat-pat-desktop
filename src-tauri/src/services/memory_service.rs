@@ -66,7 +66,12 @@ pub async fn save(
         .map_err(Into::into)
 }
 
-pub async fn search(pool: &SqlitePool, query: &str, tag: Option<&str>, limit: i64) -> AppResult<Vec<AiMemoryEntry>> {
+pub async fn search(
+    pool: &SqlitePool,
+    query: &str,
+    tag: Option<&str>,
+    limit: i64,
+) -> AppResult<Vec<AiMemoryEntry>> {
     let query = query.trim();
 
     if query.is_empty() {
@@ -109,7 +114,10 @@ pub async fn search(pool: &SqlitePool, query: &str, tag: Option<&str>, limit: i6
 }
 
 pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
-    sqlx::query("DELETE FROM ai_memory_entries WHERE id = ?").bind(id).execute(pool).await?;
+    sqlx::query("DELETE FROM ai_memory_entries WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -127,8 +135,24 @@ mod tests {
     #[tokio::test]
     async fn save_and_full_text_search() {
         let pool = crate::db::init_test_pool().await;
-        save(&pool, "snippet", "useEffect cleanup pattern in React", None, &["react".into()]).await.unwrap();
-        save(&pool, "prompt", "explain rust ownership", None, &["rust".into()]).await.unwrap();
+        save(
+            &pool,
+            "snippet",
+            "useEffect cleanup pattern in React",
+            None,
+            &["react".into()],
+        )
+        .await
+        .unwrap();
+        save(
+            &pool,
+            "prompt",
+            "explain rust ownership",
+            None,
+            &["rust".into()],
+        )
+        .await
+        .unwrap();
 
         let results = search(&pool, "react", None, 10).await.unwrap();
         assert_eq!(results.len(), 1);
@@ -138,8 +162,12 @@ mod tests {
     #[tokio::test]
     async fn empty_query_returns_recent_not_empty() {
         let pool = crate::db::init_test_pool().await;
-        save(&pool, "snippet", "first entry", None, &[]).await.unwrap();
-        save(&pool, "snippet", "second entry", None, &[]).await.unwrap();
+        save(&pool, "snippet", "first entry", None, &[])
+            .await
+            .unwrap();
+        save(&pool, "snippet", "second entry", None, &[])
+            .await
+            .unwrap();
         let results = search(&pool, "", None, 10).await.unwrap();
         assert_eq!(results.len(), 2);
     }
@@ -147,8 +175,12 @@ mod tests {
     #[tokio::test]
     async fn tag_filter_narrows_results() {
         let pool = crate::db::init_test_pool().await;
-        save(&pool, "snippet", "entry A", None, &["work".into()]).await.unwrap();
-        save(&pool, "snippet", "entry B", None, &["personal".into()]).await.unwrap();
+        save(&pool, "snippet", "entry A", None, &["work".into()])
+            .await
+            .unwrap();
+        save(&pool, "snippet", "entry B", None, &["personal".into()])
+            .await
+            .unwrap();
         let results = search(&pool, "", Some("work"), 10).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].content.contains('A'));

@@ -14,9 +14,13 @@ pub async fn cat_get_state(state: State<'_, AppState>) -> AppResult<CatState> {
 }
 
 #[tauri::command]
-pub async fn cat_set_personality(state: State<'_, AppState>, personality: String) -> AppResult<CatState> {
-    let parsed = Personality::from_str(&personality)
-        .ok_or_else(|| crate::error::AppError::InvalidInput(format!("unknown personality: {personality}")))?;
+pub async fn cat_set_personality(
+    state: State<'_, AppState>,
+    personality: String,
+) -> AppResult<CatState> {
+    let parsed = Personality::from_str(&personality).ok_or_else(|| {
+        crate::error::AppError::InvalidInput(format!("unknown personality: {personality}"))
+    })?;
 
     let previous: CatState = sqlx::query_as("SELECT * FROM cat_state WHERE id = 1")
         .fetch_one(&state.db)
@@ -43,7 +47,9 @@ pub async fn cat_set_personality(state: State<'_, AppState>, personality: String
 #[tauri::command]
 pub async fn cat_rename(state: State<'_, AppState>, name: String) -> AppResult<CatState> {
     if name.trim().is_empty() || name.len() > 32 {
-        return Err(crate::error::AppError::InvalidInput("name must be 1-32 characters".into()));
+        return Err(crate::error::AppError::InvalidInput(
+            "name must be 1-32 characters".into(),
+        ));
     }
     sqlx::query("UPDATE cat_state SET name = ?, updated_at = unixepoch() WHERE id = 1")
         .bind(name.trim())
@@ -73,7 +79,11 @@ pub async fn xp_award(
         "focus_session" => xp_service::XpSource::FocusSession,
         "achievement" => xp_service::XpSource::Achievement,
         "rare_event" => xp_service::XpSource::RareEvent,
-        other => return Err(crate::error::AppError::InvalidInput(format!("unknown xp source: {other}"))),
+        other => {
+            return Err(crate::error::AppError::InvalidInput(format!(
+                "unknown xp source: {other}"
+            )))
+        }
     };
     let result = xp_service::award(&state.db, source, amount, None).await?;
 
@@ -95,5 +105,8 @@ pub async fn xp_award(
     }
     let _ = state.app_handle.emit("xp:updated", &result.cat_state);
 
-    Ok(XpAwardResponse { cat_state: result.cat_state, leveled_up: result.leveled_up })
+    Ok(XpAwardResponse {
+        cat_state: result.cat_state,
+        leveled_up: result.leveled_up,
+    })
 }

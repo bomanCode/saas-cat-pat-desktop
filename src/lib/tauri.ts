@@ -166,6 +166,19 @@ export async function listenEvent<T>(name: string, handler: (payload: T) => void
   return unlisten;
 }
 
+/** Shows and focuses the Hub window; no-op outside Tauri. Calling this from
+ * within the Hub window itself is harmless (just re-focuses it).
+ * Used by both CatStage's double-click handler and the tray menu's
+ * "Open Hub"/"Start Focus" actions (useTauriEvents.ts) — previously
+ * duplicated in both places. */
+export async function openHubWindow(): Promise<void> {
+  if (!isTauri()) return;
+  const { Window } = await import("@tauri-apps/api/window");
+  const hub = await Window.getByLabel("hub");
+  await hub?.show();
+  await hub?.setFocus();
+}
+
 /** Fire-and-forget emit to the Rust backend; no-ops outside Tauri. */
 export function emitEvent<T>(name: string, payload?: T): void {
   if (!isTauri()) return;

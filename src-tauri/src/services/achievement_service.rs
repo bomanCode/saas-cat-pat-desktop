@@ -23,14 +23,14 @@ async fn progress_for_rule(pool: &SqlitePool, rule_type: &str) -> AppResult<i64>
             .await?
         }
         "pomodoro_completed" => {
-            sqlx::query_scalar(
-                "SELECT COUNT(*) FROM pomodoro_sessions WHERE status='completed'",
-            )
-            .fetch_one(pool)
-            .await?
+            sqlx::query_scalar("SELECT COUNT(*) FROM pomodoro_sessions WHERE status='completed'")
+                .fetch_one(pool)
+                .await?
         }
         "memory_entries_saved" => {
-            sqlx::query_scalar("SELECT COUNT(*) FROM ai_memory_entries").fetch_one(pool).await?
+            sqlx::query_scalar("SELECT COUNT(*) FROM ai_memory_entries")
+                .fetch_one(pool)
+                .await?
         }
         "weekend_sessions" => {
             // sqlite strftime('%w', ...) -> 0=Sunday..6=Saturday
@@ -57,7 +57,9 @@ async fn progress_for_rule(pool: &SqlitePool, rule_type: &str) -> AppResult<i64>
 }
 
 pub async fn list_with_progress(pool: &SqlitePool) -> AppResult<Vec<AchievementWithProgress>> {
-    let achievements: Vec<Achievement> = sqlx::query_as("SELECT * FROM achievements").fetch_all(pool).await?;
+    let achievements: Vec<Achievement> = sqlx::query_as("SELECT * FROM achievements")
+        .fetch_all(pool)
+        .await?;
     let mut out = Vec::with_capacity(achievements.len());
     for a in achievements {
         let progress = progress_for_rule(pool, &a.rule_type).await?;
@@ -81,16 +83,17 @@ pub async fn list_with_progress(pool: &SqlitePool) -> AppResult<Vec<AchievementW
 /// complete, memory save, etc). Cheap enough to call liberally — each rule
 /// is an indexed COUNT query.
 pub async fn evaluate_all(pool: &SqlitePool) -> AppResult<Vec<Achievement>> {
-    let achievements: Vec<Achievement> = sqlx::query_as("SELECT * FROM achievements").fetch_all(pool).await?;
+    let achievements: Vec<Achievement> = sqlx::query_as("SELECT * FROM achievements")
+        .fetch_all(pool)
+        .await?;
     let mut newly_unlocked = Vec::new();
 
     for a in achievements {
-        let already: Option<i64> = sqlx::query_scalar(
-            "SELECT 1 FROM achievement_unlocks WHERE achievement_id = ?",
-        )
-        .bind(&a.id)
-        .fetch_optional(pool)
-        .await?;
+        let already: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM achievement_unlocks WHERE achievement_id = ?")
+                .bind(&a.id)
+                .fetch_optional(pool)
+                .await?;
         if already.is_some() {
             continue;
         }
@@ -119,8 +122,12 @@ mod tests {
     #[tokio::test]
     async fn first_focus_unlocks_after_one_completed_session() {
         let pool = crate::db::init_test_pool().await;
-        let session = pomodoro_service::start(&pool, Phase::Focus, 1500).await.unwrap();
-        pomodoro_service::complete(&pool, session.id, 1500).await.unwrap();
+        let session = pomodoro_service::start(&pool, Phase::Focus, 1500)
+            .await
+            .unwrap();
+        pomodoro_service::complete(&pool, session.id, 1500)
+            .await
+            .unwrap();
 
         let unlocked = evaluate_all(&pool).await.unwrap();
         assert!(unlocked.iter().any(|a| a.id == "first_focus"));
@@ -134,11 +141,16 @@ mod tests {
     async fn progress_caps_at_target_for_display() {
         let pool = crate::db::init_test_pool().await;
         for _ in 0..3 {
-            let s = pomodoro_service::start(&pool, Phase::Focus, 60).await.unwrap();
+            let s = pomodoro_service::start(&pool, Phase::Focus, 60)
+                .await
+                .unwrap();
             pomodoro_service::complete(&pool, s.id, 60).await.unwrap();
         }
         let list = list_with_progress(&pool).await.unwrap();
-        let first_focus = list.iter().find(|a| a.achievement.id == "first_focus").unwrap();
+        let first_focus = list
+            .iter()
+            .find(|a| a.achievement.id == "first_focus")
+            .unwrap();
         assert_eq!(first_focus.progress, 1); // target is 1, capped even if more occurred
         assert!(first_focus.unlocked);
     }

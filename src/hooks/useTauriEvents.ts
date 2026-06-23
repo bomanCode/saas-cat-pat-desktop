@@ -18,18 +18,10 @@ import { useCatStore } from "@/state/catStore";
 import { useMoodStore } from "@/state/moodStore";
 import { usePomodoroStore } from "@/state/pomodoroStore";
 import { useReminderStore } from "@/state/reminderStore";
-import { listenEvent } from "@/lib/tauri";
+import { listenEvent, openHubWindow } from "@/lib/tauri";
 
 let listenersInitialized = false;
 
-/** Opens the Hub window if it exists (no-op when already in the Hub window). */
-async function openHubWindow(): Promise<void> {
-  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
-  const { Window } = await import("@tauri-apps/api/window");
-  const hub = await Window.getByLabel("hub");
-  await hub?.show();
-  await hub?.setFocus();
-}
 
 export function useTauriEvents(): void {
   useEffect(() => {

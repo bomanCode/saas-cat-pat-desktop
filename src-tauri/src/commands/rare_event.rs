@@ -6,7 +6,10 @@ use base64::Engine;
 use tauri::State;
 
 #[tauri::command]
-pub async fn rare_event_recent(state: State<'_, AppState>, limit: i64) -> AppResult<Vec<RareEventLogRow>> {
+pub async fn rare_event_recent(
+    state: State<'_, AppState>,
+    limit: i64,
+) -> AppResult<Vec<RareEventLogRow>> {
     rare_event_service::recent(&state.db, limit).await
 }
 
@@ -14,7 +17,11 @@ pub async fn rare_event_recent(state: State<'_, AppState>, limit: i64) -> AppRes
 /// canvas export) against a rare-event log row. The backend never captures
 /// or transmits the screenshot itself — see architecture.md §11 Privacy.
 #[tauri::command]
-pub async fn rare_event_save_screenshot(state: State<'_, AppState>, log_id: i64, path: String) -> AppResult<()> {
+pub async fn rare_event_save_screenshot(
+    state: State<'_, AppState>,
+    log_id: i64,
+    path: String,
+) -> AppResult<()> {
     rare_event_service::record_screenshot(&state.db, log_id, path).await
 }
 
@@ -35,11 +42,15 @@ pub async fn rare_event_capture_screenshot(
         .decode(base64_png.trim())
         .map_err(|e| AppError::InvalidInput(format!("invalid base64 image data: {e}")))?;
 
-    let pictures_dir = dirs::picture_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| ".".into()));
+    let pictures_dir =
+        dirs::picture_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| ".".into()));
     let target_dir = pictures_dir.join("Comnyang");
     std::fs::create_dir_all(&target_dir)?;
 
-    let filename = format!("comnyang-rare-event-{log_id}-{}.png", chrono::Utc::now().timestamp());
+    let filename = format!(
+        "comnyang-rare-event-{log_id}-{}.png",
+        chrono::Utc::now().timestamp()
+    );
     let path = target_dir.join(filename);
     std::fs::write(&path, &bytes)?;
 
@@ -47,4 +58,3 @@ pub async fn rare_event_capture_screenshot(
     rare_event_service::record_screenshot(&state.db, log_id, path_str.clone()).await?;
     Ok(path_str)
 }
-

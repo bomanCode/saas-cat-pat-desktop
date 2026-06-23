@@ -22,21 +22,31 @@ pub async fn memory_save(
     .await?;
 
     crate::services::analytics_service::track(
-        &state.db, "ai_response_saved", serde_json::json!({ "kind": entry.kind }),
-    ).await?;
+        &state.db,
+        "ai_response_saved",
+        serde_json::json!({ "kind": entry.kind }),
+    )
+    .await?;
 
     let unlocked = crate::services::achievement_service::evaluate_all(&state.db).await?;
     for a in &unlocked {
         crate::services::analytics_service::track(
-            &state.db, "achievement_unlocked", serde_json::json!({ "id": a.id, "xpAwarded": a.xp_reward }),
-        ).await?;
+            &state.db,
+            "achievement_unlocked",
+            serde_json::json!({ "id": a.id, "xpAwarded": a.xp_reward }),
+        )
+        .await?;
     }
 
     Ok(entry)
 }
 
 #[tauri::command]
-pub async fn memory_search(state: State<'_, AppState>, query: String, tag: Option<String>) -> AppResult<Vec<AiMemoryEntry>> {
+pub async fn memory_search(
+    state: State<'_, AppState>,
+    query: String,
+    tag: Option<String>,
+) -> AppResult<Vec<AiMemoryEntry>> {
     memory_service::search(&state.db, &query, tag.as_deref(), 50).await
 }
 

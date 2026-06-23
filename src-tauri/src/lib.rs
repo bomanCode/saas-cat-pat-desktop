@@ -19,7 +19,9 @@ pub struct AppState {
 }
 
 pub fn run() {
-    tracing_subscriber::fmt().with_env_filter("comnyang=info").init();
+    tracing_subscriber::fmt()
+        .with_env_filter("comnyang=info")
+        .init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
@@ -79,10 +81,15 @@ async fn bootstrap(app: AppHandle) -> anyhow::Result<()> {
 
     pomodoro_reconcile_on_boot(&pool).await;
 
-    let state = AppState { db: pool.clone(), app_handle: app.clone() };
+    let state = AppState {
+        db: pool.clone(),
+        app_handle: app.clone(),
+    };
     app.manage(state);
 
-    services::analytics_service::track(&pool, "app_open", serde_json::json!({})).await.ok();
+    services::analytics_service::track(&pool, "app_open", serde_json::json!({}))
+        .await
+        .ok();
 
     spawn_reminder_loop(app.clone(), pool.clone());
     spawn_mood_loop(app.clone(), pool.clone());
@@ -163,8 +170,11 @@ fn spawn_reminder_loop(app: AppHandle, pool: SqlitePool) {
 
 fn spawn_mood_loop(app: AppHandle, pool: SqlitePool) {
     use services::mood_service::{compute_mood, log_mood, MoodSignals};
-    let last_interaction = Arc::new(std::sync::atomic::AtomicI64::new(chrono::Utc::now().timestamp()));
-    let interactions_window: Arc<std::sync::Mutex<Vec<i64>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let last_interaction = Arc::new(std::sync::atomic::AtomicI64::new(
+        chrono::Utc::now().timestamp(),
+    ));
+    let interactions_window: Arc<std::sync::Mutex<Vec<i64>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
 
     // Listen for interaction events from the frontend (drag/click/pat) to
     // feed the mood signal — see pet_interaction analytics event.
@@ -185,8 +195,12 @@ fn spawn_mood_loop(app: AppHandle, pool: SqlitePool) {
         loop {
             tokio::time::sleep(Duration::from_secs(15)).await;
             let now = chrono::Utc::now();
-            let idle_seconds = now.timestamp() - last_interaction.load(std::sync::atomic::Ordering::Relaxed);
-            let interactions_last_hour = interactions_window.lock().map(|w| w.len() as u32).unwrap_or(0);
+            let idle_seconds =
+                now.timestamp() - last_interaction.load(std::sync::atomic::Ordering::Relaxed);
+            let interactions_last_hour = interactions_window
+                .lock()
+                .map(|w| w.len() as u32)
+                .unwrap_or(0);
 
             let focus_active: bool = sqlx::query_scalar(
                 "SELECT EXISTS(SELECT 1 FROM pomodoro_sessions WHERE phase='focus' AND status='running')",
@@ -225,26 +239,36 @@ fn spawn_focus_guardian_loop(app: AppHandle, pool: SqlitePool) {
             .await
             .unwrap_or(false);
 
-            let Some(fg) = watcher.foreground_app() else { continue };
+            let Some(fg) = watcher.foreground_app() else {
+                continue;
+            };
 
             // F10 — AI Presence Detection runs regardless of focus mode.
             if let Some((kind, confidence)) = detect_ai_tool(&fg) {
-                let _ = app.emit("ai:presence_detected", serde_json::json!({ "provider": kind, "confidence": confidence }));
+                let _ = app.emit(
+                    "ai:presence_detected",
+                    serde_json::json!({ "provider": kind, "confidence": confidence }),
+                );
                 let _ = services::analytics_service::track(
-                    &pool, "ai_detected", serde_json::json!({ "provider": kind, "confidence": confidence }),
-                ).await;
+                    &pool,
+                    "ai_detected",
+                    serde_json::json!({ "provider": kind, "confidence": confidence }),
+                )
+                .await;
             }
 
             // F09 — Focus Guardian only nudges during an active focus session,
             // and never more than once every 60s (non-blocking, friendly).
             if focus_active {
-                let patterns: Vec<String> = sqlx::query_scalar("SELECT value FROM app_settings WHERE key='distraction_patterns'")
-                    .fetch_optional(&pool)
-                    .await
-                    .ok()
-                    .flatten()
-                    .and_then(|v: String| serde_json::from_str(&v).ok())
-                    .unwrap_or_default();
+                let patterns: Vec<String> = sqlx::query_scalar(
+                    "SELECT value FROM app_settings WHERE key='distraction_patterns'",
+                )
+                .fetch_optional(&pool)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|v: String| serde_json::from_str(&v).ok())
+                .unwrap_or_default();
 
                 let now = chrono::Utc::now().timestamp();
                 if is_distraction(&fg, &patterns) && now - last_nudge_at > 60 {
@@ -271,8 +295,11 @@ fn spawn_rare_event_loop(app: AppHandle, pool: SqlitePool) {
                 Ok(Some(event)) => {
                     let _ = app.emit("rare_event:triggered", event);
                     let _ = services::analytics_service::track(
-                        &pool, "rare_event_triggered", serde_json::json!({ "eventType": event }),
-                    ).await;
+                        &pool,
+                        "rare_event_triggered",
+                        serde_json::json!({ "eventType": event }),
+                    )
+                    .await;
                 }
                 Ok(None) => {}
                 Err(e) => tracing::warn!("rare event roll failed: {e}"),
@@ -290,12 +317,18 @@ fn spawn_analytics_flush_loop(pool: SqlitePool) {
             if api_key.is_empty() {
                 continue; // analytics opt-in / not configured — never block the app
             }
-            let host = std::env::var("POSTHOG_HOST").unwrap_or_else(|_| "https://app.posthog.com".to_string());
+            let host = std::env::var("POSTHOG_HOST")
+                .unwrap_or_else(|_| "https://app.posthog.com".to_string());
 
             match services::analytics_service::unflushed_batch(&pool, 100).await {
                 Ok(batch) if !batch.is_empty() => {
                     let ids: Vec<i64> = batch.iter().map(|e| e.id).collect();
-                    if services::analytics_service::flush_to_posthog(&client, &api_key, &host, &batch).await.is_ok() {
+                    if services::analytics_service::flush_to_posthog(
+                        &client, &api_key, &host, &batch,
+                    )
+                    .await
+                    .is_ok()
+                    {
                         let _ = services::analytics_service::mark_flushed(&pool, &ids).await;
                     }
                 }
@@ -305,5 +338,3 @@ fn spawn_analytics_flush_loop(pool: SqlitePool) {
         }
     });
 }
-
-

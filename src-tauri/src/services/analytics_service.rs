@@ -98,13 +98,23 @@ mod tests {
     #[tokio::test]
     async fn track_then_batch_then_mark_flushed() {
         let pool = crate::db::init_test_pool().await;
-        track(&pool, "app_open", serde_json::json!({})).await.unwrap();
-        track(&pool, "xp_earned", serde_json::json!({"source":"pomodoro","amount":20})).await.unwrap();
+        track(&pool, "app_open", serde_json::json!({}))
+            .await
+            .unwrap();
+        track(
+            &pool,
+            "xp_earned",
+            serde_json::json!({"source":"pomodoro","amount":20}),
+        )
+        .await
+        .unwrap();
 
         let batch = unflushed_batch(&pool, 10).await.unwrap();
         assert_eq!(batch.len(), 2);
 
-        mark_flushed(&pool, &batch.iter().map(|e| e.id).collect::<Vec<_>>()).await.unwrap();
+        mark_flushed(&pool, &batch.iter().map(|e| e.id).collect::<Vec<_>>())
+            .await
+            .unwrap();
         let remaining = unflushed_batch(&pool, 10).await.unwrap();
         assert_eq!(remaining.len(), 0);
     }

@@ -26,7 +26,10 @@ pub struct AiContext {
 
 impl Default for AiContext {
     fn default() -> Self {
-        Self { system_prompt: None, max_tokens: 512 }
+        Self {
+            system_prompt: None,
+            max_tokens: 512,
+        }
     }
 }
 
@@ -50,12 +53,17 @@ pub trait AiProvider: Send + Sync {
 pub fn store_api_key(provider: &str, api_key: &str) -> AppResult<()> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, provider)
         .map_err(|e| AppError::Internal(format!("keyring entry failed: {e}")))?;
-    entry.set_password(api_key).map_err(|e| AppError::Internal(format!("keyring write failed: {e}")))?;
+    entry
+        .set_password(api_key)
+        .map_err(|e| AppError::Internal(format!("keyring write failed: {e}")))?;
     Ok(())
 }
 
 pub fn get_api_key(provider: &str) -> Option<String> {
-    keyring::Entry::new(KEYRING_SERVICE, provider).ok()?.get_password().ok()
+    keyring::Entry::new(KEYRING_SERVICE, provider)
+        .ok()?
+        .get_password()
+        .ok()
 }
 
 pub fn delete_api_key(provider: &str) -> AppResult<()> {
@@ -82,7 +90,11 @@ pub struct OllamaProvider {
 
 impl OllamaProvider {
     pub fn new(base_url: impl Into<String>, model: impl Into<String>) -> Self {
-        Self { base_url: base_url.into(), model: model.into(), client: reqwest::Client::new() }
+        Self {
+            base_url: base_url.into(),
+            model: model.into(),
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -103,18 +115,31 @@ impl AiProvider for OllamaProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| AppError::AiProvider(format!(
-                "Couldn't reach Ollama at {} — is it running? ({e})", self.base_url
-            )))?;
+            .map_err(|e| {
+                AppError::AiProvider(format!(
+                    "Couldn't reach Ollama at {} — is it running? ({e})",
+                    self.base_url
+                ))
+            })?;
         if !resp.status().is_success() {
-            return Err(AppError::AiProvider(format!("Ollama returned HTTP {}", resp.status())));
+            return Err(AppError::AiProvider(format!(
+                "Ollama returned HTTP {}",
+                resp.status()
+            )));
         }
         let json: serde_json::Value = resp
             .json()
             .await
             .map_err(|e| AppError::AiProvider(format!("ollama response parse failed: {e}")))?;
-        let text = json.get("response").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        Ok(AiResponse { text, provider: "ollama" })
+        let text = json
+            .get("response")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        Ok(AiResponse {
+            text,
+            provider: "ollama",
+        })
     }
     fn name(&self) -> &'static str {
         "ollama"
@@ -133,7 +158,11 @@ pub struct OpenAiProvider {
 
 impl OpenAiProvider {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), model: model.into(), client: reqwest::Client::new() }
+        Self {
+            api_key: api_key.into(),
+            model: model.into(),
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -162,13 +191,23 @@ impl AiProvider for OpenAiProvider {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(AppError::AiProvider(format!("OpenAI returned HTTP {status}: {body}")));
+            return Err(AppError::AiProvider(format!(
+                "OpenAI returned HTTP {status}: {body}"
+            )));
         }
 
-        let json: serde_json::Value = resp.json().await
+        let json: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| AppError::AiProvider(format!("OpenAI response parse failed: {e}")))?;
-        let text = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
-        Ok(AiResponse { text, provider: "openai" })
+        let text = json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        Ok(AiResponse {
+            text,
+            provider: "openai",
+        })
     }
     fn name(&self) -> &'static str {
         "openai"
@@ -187,7 +226,11 @@ pub struct ClaudeProvider {
 
 impl ClaudeProvider {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), model: model.into(), client: reqwest::Client::new() }
+        Self {
+            api_key: api_key.into(),
+            model: model.into(),
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -216,13 +259,23 @@ impl AiProvider for ClaudeProvider {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(AppError::AiProvider(format!("Claude API returned HTTP {status}: {body}")));
+            return Err(AppError::AiProvider(format!(
+                "Claude API returned HTTP {status}: {body}"
+            )));
         }
 
-        let json: serde_json::Value = resp.json().await
+        let json: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| AppError::AiProvider(format!("Claude response parse failed: {e}")))?;
-        let text = json["content"][0]["text"].as_str().unwrap_or("").to_string();
-        Ok(AiResponse { text, provider: "claude" })
+        let text = json["content"][0]["text"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        Ok(AiResponse {
+            text,
+            provider: "claude",
+        })
     }
     fn name(&self) -> &'static str {
         "claude"
@@ -241,7 +294,11 @@ pub struct GeminiProvider {
 
 impl GeminiProvider {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), model: model.into(), client: reqwest::Client::new() }
+        Self {
+            api_key: api_key.into(),
+            model: model.into(),
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -271,13 +328,23 @@ impl AiProvider for GeminiProvider {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(AppError::AiProvider(format!("Gemini API returned HTTP {status}: {body}")));
+            return Err(AppError::AiProvider(format!(
+                "Gemini API returned HTTP {status}: {body}"
+            )));
         }
 
-        let json: serde_json::Value = resp.json().await
+        let json: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| AppError::AiProvider(format!("Gemini response parse failed: {e}")))?;
-        let text = json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").to_string();
-        Ok(AiResponse { text, provider: "gemini" })
+        let text = json["candidates"][0]["content"]["parts"][0]["text"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        Ok(AiResponse {
+            text,
+            provider: "gemini",
+        })
     }
     fn name(&self) -> &'static str {
         "gemini"
@@ -315,16 +382,24 @@ pub fn resolve_provider(name: &str) -> Box<dyn AiProvider> {
         "ollama" => Box::new(OllamaProvider::new("http://localhost:11434", "llama3.1")),
         "openai" => match get_api_key("openai") {
             Some(key) => Box::new(OpenAiProvider::new(key, "gpt-4o-mini")),
-            None => Box::new(UnconfiguredProvider { provider_name: "OpenAI".into() }),
+            None => Box::new(UnconfiguredProvider {
+                provider_name: "OpenAI".into(),
+            }),
         },
         "claude" => match get_api_key("claude") {
             Some(key) => Box::new(ClaudeProvider::new(key, "claude-sonnet-4-6")),
-            None => Box::new(UnconfiguredProvider { provider_name: "Claude".into() }),
+            None => Box::new(UnconfiguredProvider {
+                provider_name: "Claude".into(),
+            }),
         },
         "gemini" => match get_api_key("gemini") {
             Some(key) => Box::new(GeminiProvider::new(key, "gemini-2.0-flash")),
-            None => Box::new(UnconfiguredProvider { provider_name: "Gemini".into() }),
+            None => Box::new(UnconfiguredProvider {
+                provider_name: "Gemini".into(),
+            }),
         },
-        other => Box::new(UnconfiguredProvider { provider_name: other.to_string() }),
+        other => Box::new(UnconfiguredProvider {
+            provider_name: other.to_string(),
+        }),
     }
 }

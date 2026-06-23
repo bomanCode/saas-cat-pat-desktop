@@ -66,7 +66,14 @@ pub fn next_fire_after(previous: DateTime<Local>, rule: &RepeatRule) -> Option<D
 fn add_local_days(dt: DateTime<Local>, days: i64) -> DateTime<Local> {
     let naive = dt.naive_local().date() + Duration::days(days);
     Local
-        .with_ymd_and_hms(naive.year(), naive.month(), naive.day(), dt.hour(), dt.minute(), dt.second())
+        .with_ymd_and_hms(
+            naive.year(),
+            naive.month(),
+            naive.day(),
+            dt.hour(),
+            dt.minute(),
+            dt.second(),
+        )
         .single()
         .unwrap_or(dt + Duration::days(days)) // fallback for rare ambiguous-local-time edge case
 }
@@ -133,7 +140,10 @@ pub async fn update(
 }
 
 pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
-    sqlx::query("DELETE FROM reminders WHERE id = ?").bind(id).execute(pool).await?;
+    sqlx::query("DELETE FROM reminders WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -142,12 +152,11 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
 /// completion (awards XP), and reschedules or deactivates.
 pub async fn fire_due(pool: &SqlitePool, cat_name: &str) -> AppResult<Vec<Reminder>> {
     let now = chrono::Utc::now().timestamp();
-    let due: Vec<Reminder> = sqlx::query_as(
-        "SELECT * FROM reminders WHERE is_active = 1 AND next_fire_at <= ?",
-    )
-    .bind(now)
-    .fetch_all(pool)
-    .await?;
+    let due: Vec<Reminder> =
+        sqlx::query_as("SELECT * FROM reminders WHERE is_active = 1 AND next_fire_at <= ?")
+            .bind(now)
+            .fetch_all(pool)
+            .await?;
 
     let mut fired = Vec::new();
     for r in due {
@@ -201,7 +210,10 @@ pub async fn fire_due(pool: &SqlitePool, cat_name: &str) -> AppResult<Vec<Remind
             }
         }
 
-        fired.push(Reminder { body_template: rendered, ..r });
+        fired.push(Reminder {
+            body_template: rendered,
+            ..r
+        });
     }
     Ok(fired)
 }
@@ -224,7 +236,9 @@ mod tests {
     fn custom_rule_finds_next_matching_weekday() {
         // Wednesday 2026-03-11, rule = Mon(1)/Fri(5)
         let prev = Local.with_ymd_and_hms(2026, 3, 11, 8, 30, 0).unwrap();
-        let rule = RepeatRule::Custom { days_of_week: vec![1, 5] };
+        let rule = RepeatRule::Custom {
+            days_of_week: vec![1, 5],
+        };
         let next = next_fire_after(prev, &rule).unwrap();
         assert_eq!(next.weekday().num_days_from_sunday(), 5); // Friday
     }

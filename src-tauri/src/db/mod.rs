@@ -30,7 +30,9 @@ pub async fn init_pool(path: &PathBuf) -> AppResult<SqlitePool> {
         .connect_with(opts)
         .await?;
 
-    sqlx::migrate!("../db/migrations").run(&pool).await
+    sqlx::migrate!("../db/migrations")
+        .run(&pool)
+        .await
         .map_err(|e| AppError::Internal(format!("migration failed: {e}")))?;
 
     Ok(pool)

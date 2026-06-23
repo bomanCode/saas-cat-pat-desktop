@@ -29,7 +29,11 @@ impl Phase {
     }
 }
 
-pub async fn start(pool: &SqlitePool, phase: Phase, planned_seconds: i64) -> AppResult<PomodoroSession> {
+pub async fn start(
+    pool: &SqlitePool,
+    phase: Phase,
+    planned_seconds: i64,
+) -> AppResult<PomodoroSession> {
     if planned_seconds <= 0 {
         return Err(AppError::InvalidInput("planned_seconds must be > 0".into()));
     }
@@ -53,7 +57,11 @@ pub async fn resume(pool: &SqlitePool, session_id: i64) -> AppResult<PomodoroSes
     set_status(pool, session_id, "running").await
 }
 
-async fn set_status(pool: &SqlitePool, session_id: i64, status: &str) -> AppResult<PomodoroSession> {
+async fn set_status(
+    pool: &SqlitePool,
+    session_id: i64,
+    status: &str,
+) -> AppResult<PomodoroSession> {
     let session = fetch(pool, session_id).await?;
     if session.status == "completed" || session.status == "abandoned" {
         return Err(AppError::InvalidInput(format!(
@@ -74,7 +82,11 @@ pub struct CompleteResult {
     pub xp_awarded: i64,
 }
 
-pub async fn complete(pool: &SqlitePool, session_id: i64, actual_seconds: i64) -> AppResult<CompleteResult> {
+pub async fn complete(
+    pool: &SqlitePool,
+    session_id: i64,
+    actual_seconds: i64,
+) -> AppResult<CompleteResult> {
     let mut tx = pool.begin().await?;
     let session: PomodoroSession = sqlx::query_as("SELECT * FROM pomodoro_sessions WHERE id = ?")
         .bind(session_id)
@@ -86,7 +98,10 @@ pub async fn complete(pool: &SqlitePool, session_id: i64, actual_seconds: i64) -
         // Idempotent: already paid out, return as-is rather than erroring,
         // since the frontend may legitimately retry after a network blip.
         tx.commit().await?;
-        return Ok(CompleteResult { session, xp_awarded: 0 });
+        return Ok(CompleteResult {
+            session,
+            xp_awarded: 0,
+        });
     }
 
     sqlx::query(
@@ -97,7 +112,11 @@ pub async fn complete(pool: &SqlitePool, session_id: i64, actual_seconds: i64) -
     .execute(&mut *tx)
     .await?;
 
-    let xp_amount = if session.phase == "focus" { xp_service::XP_POMODORO_COMPLETE } else { 0 };
+    let xp_amount = if session.phase == "focus" {
+        xp_service::XP_POMODORO_COMPLETE
+    } else {
+        0
+    };
     if xp_amount > 0 {
         sqlx::query("UPDATE pomodoro_sessions SET xp_awarded = ? WHERE id = ?")
             .bind(xp_amount)
@@ -112,7 +131,10 @@ pub async fn complete(pool: &SqlitePool, session_id: i64, actual_seconds: i64) -
     }
 
     let updated = fetch(pool, session_id).await?;
-    Ok(CompleteResult { session: updated, xp_awarded: xp_amount })
+    Ok(CompleteResult {
+        session: updated,
+        xp_awarded: xp_amount,
+    })
 }
 
 pub async fn fetch(pool: &SqlitePool, session_id: i64) -> AppResult<PomodoroSession> {
@@ -123,7 +145,11 @@ pub async fn fetch(pool: &SqlitePool, session_id: i64) -> AppResult<PomodoroSess
         .ok_or_else(|| AppError::NotFound(format!("pomodoro session {session_id}")))
 }
 
-pub async fn history(pool: &SqlitePool, from: Option<i64>, to: Option<i64>) -> AppResult<Vec<PomodoroSession>> {
+pub async fn history(
+    pool: &SqlitePool,
+    from: Option<i64>,
+    to: Option<i64>,
+) -> AppResult<Vec<PomodoroSession>> {
     let from = from.unwrap_or(0);
     let to = to.unwrap_or(i64::MAX);
     let rows = sqlx::query_as::<_, PomodoroSession>(
@@ -162,12 +188,16 @@ mod tests {
         assert_eq!(first.xp_awarded, xp_service::XP_POMODORO_COMPLETE);
 
         let second = complete(&pool, session.id, 1500).await.unwrap();
-        assert_eq!(second.xp_awarded, 0, "second complete() must not re-award XP");
+        assert_eq!(
+            second.xp_awarded, 0,
+            "second complete() must not re-award XP"
+        );
 
-        let cat: crate::db::models::CatState = sqlx::query_as("SELECT * FROM cat_state WHERE id = 1")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let cat: crate::db::models::CatState =
+            sqlx::query_as("SELECT * FROM cat_state WHERE id = 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(cat.xp_total, xp_service::XP_POMODORO_COMPLETE);
     }
 

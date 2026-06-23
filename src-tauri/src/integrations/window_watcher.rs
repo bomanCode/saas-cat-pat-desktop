@@ -46,7 +46,10 @@ impl WindowWatcher for ActiveWinWatcher {
         // .app_name and .title fields. On Linux this requires X11; under
         // Wayland it will error, which we treat the same as "unavailable".
         match active_win_pos_rs::get_active_window() {
-            Ok(w) => Some(ForegroundApp { process_name: w.app_name, window_title: w.title }),
+            Ok(w) => Some(ForegroundApp {
+                process_name: w.app_name,
+                window_title: w.title,
+            }),
             Err(_) => None,
         }
     }
@@ -75,7 +78,9 @@ pub fn default_watcher() -> Box<dyn WindowWatcher> {
 /// (schema.sql), matched case-insensitively against title OR process name.
 pub fn is_distraction(app: &ForegroundApp, patterns: &[String]) -> bool {
     let haystack = format!("{} {}", app.process_name, app.window_title).to_lowercase();
-    patterns.iter().any(|p| haystack.contains(&p.to_lowercase()))
+    patterns
+        .iter()
+        .any(|p| haystack.contains(&p.to_lowercase()))
 }
 
 // ---------------------------------------------------------------------------
@@ -91,9 +96,15 @@ pub enum AiToolKind {
 }
 
 const AI_TOOL_PATTERNS: &[(AiToolKind, &[&str])] = &[
-    (AiToolKind::ChatGpt, &["chatgpt", "chat.openai.com", "openai"]),
+    (
+        AiToolKind::ChatGpt,
+        &["chatgpt", "chat.openai.com", "openai"],
+    ),
     (AiToolKind::Claude, &["claude.ai", "anthropic"]),
-    (AiToolKind::Gemini, &["gemini.google.com", "bard.google.com"]),
+    (
+        AiToolKind::Gemini,
+        &["gemini.google.com", "bard.google.com"],
+    ),
 ];
 
 /// Returns the detected AI tool, if any, with a naive confidence score.
@@ -120,19 +131,28 @@ mod tests {
     use super::*;
 
     fn app(process: &str, title: &str) -> ForegroundApp {
-        ForegroundApp { process_name: process.into(), window_title: title.into() }
+        ForegroundApp {
+            process_name: process.into(),
+            window_title: title.into(),
+        }
     }
 
     #[test]
     fn detects_youtube_distraction_by_title() {
         let patterns = vec!["youtube.com".to_string(), "tiktok.com".to_string()];
-        assert!(is_distraction(&app("chrome.exe", "Cat videos - YouTube.com"), &patterns));
+        assert!(is_distraction(
+            &app("chrome.exe", "Cat videos - YouTube.com"),
+            &patterns
+        ));
     }
 
     #[test]
     fn ignores_non_matching_app() {
         let patterns = vec!["youtube.com".to_string()];
-        assert!(!is_distraction(&app("code.exe", "main.rs - VS Code"), &patterns));
+        assert!(!is_distraction(
+            &app("code.exe", "main.rs - VS Code"),
+            &patterns
+        ));
     }
 
     #[test]
@@ -143,7 +163,8 @@ mod tests {
 
     #[test]
     fn detects_claude_with_high_confidence_from_title() {
-        let (kind, confidence) = detect_ai_tool(&app("firefox.exe", "claude.ai - Comnyang planning")).unwrap();
+        let (kind, confidence) =
+            detect_ai_tool(&app("firefox.exe", "claude.ai - Comnyang planning")).unwrap();
         assert_eq!(kind, AiToolKind::Claude);
         assert!(confidence >= 0.9);
     }

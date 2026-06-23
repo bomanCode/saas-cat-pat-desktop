@@ -8,8 +8,11 @@ use tauri::State;
 pub async fn story_get_today(state: State<'_, AppState>) -> AppResult<DailyStory> {
     let story = story_service::get_or_generate_today(&state.db).await?;
     crate::services::analytics_service::track(
-        &state.db, "story_viewed", serde_json::json!({ "storyDate": story.story_date }),
-    ).await?;
+        &state.db,
+        "story_viewed",
+        serde_json::json!({ "storyDate": story.story_date }),
+    )
+    .await?;
     Ok(story)
 }
 
@@ -19,7 +22,9 @@ pub async fn story_regenerate(state: State<'_, AppState>) -> AppResult<DailyStor
         .fetch_one(&state.db)
         .await?;
     if cat.tier != "pro" {
-        return Err(crate::error::AppError::InvalidInput("story_regenerate is a Pro feature".into()));
+        return Err(crate::error::AppError::InvalidInput(
+            "story_regenerate is a Pro feature".into(),
+        ));
     }
     story_service::regenerate_today(&state.db).await
 }

@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { CatEngine } from "@/engine/CatEngine";
 import type { Vec2 } from "@/engine/eyeFollow";
 import { useMoodStore } from "@/state/moodStore";
-import { backend, emitEvent, listenEvent } from "@/lib/tauri";
+import { backend, emitEvent, listenEvent, openHubWindow } from "@/lib/tauri";
 import { useCat } from "@/hooks/useCat";
 import { pickLine } from "@/engine/dialogue";
 import { SpeechBubble, makeBubble, type BubbleMessage } from "@/components/cat/SpeechBubble";
@@ -234,10 +234,3 @@ export function CatStage() {
   );
 }
 
-async function openHubWindow() {
-  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
-  const { Window } = await import("@tauri-apps/api/window");
-  const hub = await Window.getByLabel("hub");
-  await hub?.show();
-  await hub?.setFocus();
-}
