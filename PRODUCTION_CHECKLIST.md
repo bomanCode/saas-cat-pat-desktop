@@ -85,3 +85,17 @@ This checklist gates a public release, not the MVP feature-complete milestone (s
 - No data export/backup
 - AI provider calls are real HTTP implementations but not load-tested against live APIs
 - Cloud Sync, Marketplace, AI Coach, Voice Interaction, Team Cats are out of scope (post-MVP, PRD §9)
+
+---
+
+## 12. Static analysis pass (sandbox-verified, $(date -u +%Y-%m-%d))
+
+Executed in this build environment (no Rust toolchain — webkit2gtk system deps blocked by apt conflict on apt Rust 1.75 vs crate edition2024 requirements). All checks below were run via static analysis scripts rather than `cargo check`:
+
+- [x] **All 28 registered Tauri commands exist as `pub fn` / `pub async fn`** — verified by cross-referencing `lib.rs` invoke_handler! list against every `commands/*.rs` file. Zero mismatches.
+- [x] **All 27 frontend `invokeReal()` calls match a registered Rust command** — 27/28 matched; `rare_event_save_screenshot` is registered but has no frontend call (intentional — it's only called internally by `rare_event_capture_screenshot` after writing the file).
+- [x] **All 7 `FromRow` structs match their SQL schema table columns exactly** — verified by cross-referencing `db/models.rs` field names against `db/schema.sql` column names. Zero mismatches.
+- [x] **All 11 Rust-emitted events now have a frontend subscriber** — was 9/11; `tray:open_hub` and `tray:start_focus` were emitted by `setup_tray()` in `lib.rs` but never subscribed anywhere in the frontend. Fixed in `src/hooks/useTauriEvents.ts` (tray:open_hub → openHubWindow(); tray:start_focus → pomodoroStore.start("focus") + openHubWindow() with active-session guard).
+- [x] **Icons generated and committed** — `src-tauri/icons/` now contains all 5 files required by `tauri.conf.json`: `32x32.png`, `128x128.png`, `128x128@2x.png`, `icon.ico` (7 frames: 16/24/32/48/64/128/256px), `icon.icns` (5 chunks: ic04/ic05/ic07/ic08/ic09). `tauri build` icon-bundling step will no longer fail immediately.
+- [x] **Service → command call graph verified** — all service `pub async fn` signatures match the arguments passed at call sites in `commands/*.rs`. No obvious type-level mismatches found by inspection.
+- [ ] **`cargo check` on a real machine** — STILL REQUIRED. The static analysis above covers call-graph and schema consistency but cannot catch Rust lifetime errors, missing trait bounds, or borrow-checker issues. This is the single most important remaining verification step.
