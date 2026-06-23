@@ -157,13 +157,7 @@ mod tests {
 
     #[test]
     fn personality_round_trips_through_str() {
-        for p in [
-            Personality::Lazy,
-            Personality::Hyper,
-            Personality::Smart,
-            Personality::Clingy,
-            Personality::Tsundere,
-        ] {
+        for p in [Personality::Lazy, Personality::Hyper, Personality::Smart, Personality::Clingy, Personality::Tsundere] {
             assert_eq!(Personality::from_str(p.as_str()), Some(p));
         }
     }

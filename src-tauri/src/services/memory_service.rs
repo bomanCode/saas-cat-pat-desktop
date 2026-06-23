@@ -66,12 +66,7 @@ pub async fn save(
         .map_err(Into::into)
 }
 
-pub async fn search(
-    pool: &SqlitePool,
-    query: &str,
-    tag: Option<&str>,
-    limit: i64,
-) -> AppResult<Vec<AiMemoryEntry>> {
+pub async fn search(pool: &SqlitePool, query: &str, tag: Option<&str>, limit: i64) -> AppResult<Vec<AiMemoryEntry>> {
     let query = query.trim();
 
     if query.is_empty() {

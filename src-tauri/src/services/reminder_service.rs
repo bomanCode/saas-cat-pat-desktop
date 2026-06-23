@@ -66,14 +66,7 @@ pub fn next_fire_after(previous: DateTime<Local>, rule: &RepeatRule) -> Option<D
 fn add_local_days(dt: DateTime<Local>, days: i64) -> DateTime<Local> {
     let naive = dt.naive_local().date() + Duration::days(days);
     Local
-        .with_ymd_and_hms(
-            naive.year(),
-            naive.month(),
-            naive.day(),
-            dt.hour(),
-            dt.minute(),
-            dt.second(),
-        )
+        .with_ymd_and_hms(naive.year(), naive.month(), naive.day(), dt.hour(), dt.minute(), dt.second())
         .single()
         .unwrap_or(dt + Duration::days(days)) // fallback for rare ambiguous-local-time edge case
 }

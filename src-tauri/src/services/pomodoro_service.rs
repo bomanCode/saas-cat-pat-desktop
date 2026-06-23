@@ -29,11 +29,7 @@ impl Phase {
     }
 }
 
-pub async fn start(
-    pool: &SqlitePool,
-    phase: Phase,
-    planned_seconds: i64,
-) -> AppResult<PomodoroSession> {
+pub async fn start(pool: &SqlitePool, phase: Phase, planned_seconds: i64) -> AppResult<PomodoroSession> {
     if planned_seconds <= 0 {
         return Err(AppError::InvalidInput("planned_seconds must be > 0".into()));
     }
@@ -57,11 +53,7 @@ pub async fn resume(pool: &SqlitePool, session_id: i64) -> AppResult<PomodoroSes
     set_status(pool, session_id, "running").await
 }
 
-async fn set_status(
-    pool: &SqlitePool,
-    session_id: i64,
-    status: &str,
-) -> AppResult<PomodoroSession> {
+async fn set_status(pool: &SqlitePool, session_id: i64, status: &str) -> AppResult<PomodoroSession> {
     let session = fetch(pool, session_id).await?;
     if session.status == "completed" || session.status == "abandoned" {
         return Err(AppError::InvalidInput(format!(
@@ -82,11 +74,7 @@ pub struct CompleteResult {
     pub xp_awarded: i64,
 }
 
-pub async fn complete(
-    pool: &SqlitePool,
-    session_id: i64,
-    actual_seconds: i64,
-) -> AppResult<CompleteResult> {
+pub async fn complete(pool: &SqlitePool, session_id: i64, actual_seconds: i64) -> AppResult<CompleteResult> {
     let mut tx = pool.begin().await?;
     let session: PomodoroSession = sqlx::query_as("SELECT * FROM pomodoro_sessions WHERE id = ?")
         .bind(session_id)
@@ -135,11 +123,7 @@ pub async fn fetch(pool: &SqlitePool, session_id: i64) -> AppResult<PomodoroSess
         .ok_or_else(|| AppError::NotFound(format!("pomodoro session {session_id}")))
 }
 
-pub async fn history(
-    pool: &SqlitePool,
-    from: Option<i64>,
-    to: Option<i64>,
-) -> AppResult<Vec<PomodoroSession>> {
+pub async fn history(pool: &SqlitePool, from: Option<i64>, to: Option<i64>) -> AppResult<Vec<PomodoroSession>> {
     let from = from.unwrap_or(0);
     let to = to.unwrap_or(i64::MAX);
     let rows = sqlx::query_as::<_, PomodoroSession>(

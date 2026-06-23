@@ -93,13 +93,7 @@ mod tests {
     use super::*;
 
     fn base() -> MoodSignals {
-        MoodSignals {
-            idle_seconds: 0,
-            focus_session_active: false,
-            hour_of_day: 14,
-            interactions_last_hour: 1,
-            consecutive_work_hours: 1.0,
-        }
+        MoodSignals { idle_seconds: 0, focus_session_active: false, hour_of_day: 14, interactions_last_hour: 1, consecutive_work_hours: 1.0 }
     }
 
     #[test]

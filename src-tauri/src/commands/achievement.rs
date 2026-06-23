@@ -5,8 +5,6 @@ use crate::AppState;
 use tauri::State;
 
 #[tauri::command]
-pub async fn achievement_list(
-    state: State<'_, AppState>,
-) -> AppResult<Vec<AchievementWithProgress>> {
+pub async fn achievement_list(state: State<'_, AppState>) -> AppResult<Vec<AchievementWithProgress>> {
     achievement_service::list_with_progress(&state.db).await
 }

@@ -156,11 +156,12 @@ pub async fn award(
 }
 
 pub async fn recent_events(pool: &SqlitePool, limit: i64) -> AppResult<Vec<XpEvent>> {
-    let rows =
-        sqlx::query_as::<_, XpEvent>("SELECT * FROM xp_events ORDER BY created_at DESC LIMIT ?")
-            .bind(limit)
-            .fetch_all(pool)
-            .await?;
+    let rows = sqlx::query_as::<_, XpEvent>(
+        "SELECT * FROM xp_events ORDER BY created_at DESC LIMIT ?",
+    )
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
     Ok(rows)
 }
 
@@ -201,9 +202,7 @@ mod tests {
     #[tokio::test]
     async fn award_is_transactional_and_updates_state() {
         let pool = crate::db::init_test_pool().await;
-        let result = award(&pool, XpSource::Pomodoro, None, Some(1))
-            .await
-            .unwrap();
+        let result = award(&pool, XpSource::Pomodoro, None, Some(1)).await.unwrap();
         assert_eq!(result.cat_state.xp_total, 20);
         assert!(!result.leveled_up);
 
