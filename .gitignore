@@ -35,3 +35,7 @@ Thumbs.db
 # --- Logs ---
 *.log
 npm-debug.log*
+# Podman / Docker build artifacts
+.podman/
+.docker/
+comnyang-dev.tar
