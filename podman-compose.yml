@@ -4,24 +4,24 @@
 # ============================================================
 #
 # USAGE:
-#   podman-compose up -d            # start all services
-#   podman-compose down             # stop + remove containers
-#   podman-compose logs -f dev      # follow dev container logs
-#   podman exec -it comnyang_dev bash  # shell into dev container
+#   podman-compose up -d --build      # build + start (first run)
+#   podman-compose up -d              # start (subsequent runs)
+#   podman-compose down               # stop + remove containers
+#   podman-compose logs -f dev        # follow dev container logs
+#   podman exec -it comnyang_dev bash # shell into dev container
 #
-# WHY NOT RUN tauri dev INSIDE CONTAINER:
-#   Tauri requires a native OS window + GPU compositor.
-#   This file provides only:
-#     1. Persistent SQLite volume (shared with host app)
-#     2. Headless dev container for cargo check / npm build / tests
-#   Run `tauri dev` and `tauri build` on the HOST (WSL2 terminal
-#   or Windows native), never inside the container.
+# INSIDE THE DEV CONTAINER you can run:
+#   cargo check          # verify Rust compiles
+#   cargo fmt --check    # verify formatting
+#   cargo clippy         # run linter
+#   cargo test           # run Rust unit tests
+#   npm run build        # build frontend (Vite)
+#   npm run typecheck    # TypeScript check
+#   npm run test         # Vitest unit tests
 #
-# WSL2 NOTES:
-#   - Podman on WSL2 runs rootless by default — no sudo needed.
-#   - Bind mounts use :z SELinux label for Podman compatibility.
-#   - host.containers.internal resolves to the WSL2 host IP,
-#     used here to reach Ollama if running on Windows host.
+# DO NOT run `tauri dev` or `tauri build` inside the container.
+# Tauri needs a native OS window + GPU compositor.
+# Run those commands on the WSL2 host terminal directly.
 # ============================================================
 
 version: "3.8"
@@ -31,8 +31,6 @@ version: "3.8"
 # ------------------------------------------------------------------
 volumes:
   # Persistent SQLite data — survives container restarts.
-  # Mounted into the dev container AND bind-mounted to ./sqlite_data/
-  # on the host so `tauri dev` and cargo tests share the same seed db.
   sqlite_data:
     driver: local
 
@@ -40,7 +38,7 @@ volumes:
   cargo_registry:
     driver: local
 
-  # Cargo git cache
+  # Cargo git source cache.
   cargo_git:
     driver: local
 
@@ -51,11 +49,11 @@ services:
 
   # ----------------------------------------------------------------
   # sqlite-init
-  # One-shot service: bootstraps the database from db/schema.sql
-  # the first time the volume is empty. Subsequent runs are no-ops.
+  # One-shot: bootstraps the database from db/schema.sql on first
+  # run. Subsequent runs skip because the file already exists.
   # ----------------------------------------------------------------
   sqlite-init:
-    image: keinos/sqlite3:latest
+    image: nouchka/sqlite3:latest
     container_name: comnyang_sqlite_init
     volumes:
       - sqlite_data:/data
@@ -74,24 +72,25 @@ services:
 
   # ----------------------------------------------------------------
   # dev
-  # Headless container: Node 24 + Rust stable + system deps.
-  # Used for: cargo check, cargo fmt, cargo test, npm run build
+  # Headless container: Node 24 + Rust stable + Tauri Linux deps.
+  # Built from Dockerfile.dev (node:24-bookworm base — always public).
   #
-  # Does NOT run `tauri dev` — that needs a native OS window.
+  # First run: `podman-compose up -d --build`  (builds the image)
+  # Later runs: `podman-compose up -d`         (uses cached image)
   # ----------------------------------------------------------------
   dev:
-    # ghcr.io/tauri-apps/tauri-community/builder includes Node +
-    # Rust + all webkit2gtk system deps pre-installed.
-    # Fallback: swap to `rust:1.87-bookworm` and install Node manually.
-    image: ghcr.io/tauri-apps/tauri-community/builder:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: comnyang-dev:latest
     container_name: comnyang_dev
     working_dir: /workspace
     volumes:
-      # Live project source mount (edits on host are instant)
+      # Live project source (edits on host are instant inside container)
       - .:/workspace:z
-      # Shared SQLite data from sqlite-init
+      # Shared SQLite data from sqlite-init service
       - sqlite_data:/workspace/sqlite_data:z
-      # Cargo caches (persist across container rebuilds)
+      # Cargo caches (persist across container rebuilds for fast cargo check)
       - cargo_registry:/usr/local/cargo/registry:z
       - cargo_git:/usr/local/cargo/git:z
     environment:
@@ -100,21 +99,19 @@ services:
       - RUST_BACKTRACE=${RUST_BACKTRACE:-1}
       # Node
       - NODE_ENV=${NODE_ENV:-development}
-      # Database (points at the shared sqlite_data volume)
+      # Database (shared volume path)
       - DATABASE_URL=sqlite:/workspace/sqlite_data/comnyang.db
       # Analytics disabled inside container
       - POSTHOG_API_KEY=
       - POSTHOG_HOST=https://app.posthog.com
-      # AI keys forwarded from host .env (blank = disabled in container)
+      # AI keys forwarded from host .env (blank = disabled)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      # Ollama: reach host's running instance from inside container
+      # Ollama: reach host Windows instance from inside WSL2 container
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.containers.internal:11434}
-      # Speed up rare-event testing (1 min instead of 1 hour)
+      # Dev override: check for rare events every 60s instead of 1h
       - COMNYANG_RARE_EVENT_INTERVAL_SECS=60
-    # Keep alive for interactive use
-    command: sleep infinity
     depends_on:
       - sqlite-init
     restart: unless-stopped
