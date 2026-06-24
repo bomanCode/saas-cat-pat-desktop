@@ -58,16 +58,24 @@ services:
     volumes:
       - sqlite_data:/data
       - ./db:/sql:ro,z
-    command: >
-      sh -c "
+    # IMPORTANT: nouchka/sqlite3's image ENTRYPOINT is `sqlite3` itself, not
+    # a shell. Without this override, `command: sh -c "..."` was being run
+    # as `sqlite3 sh -c "..."` — i.e. "sh" was treated as the database
+    # filename and "-c" as an (invalid) sqlite3 flag, crashing immediately
+    # with `sqlite3: Error: unknown option: -c` (Exited 1), which then
+    # blocked the `dev` service via `depends_on` below. Overriding the
+    # entrypoint to an actual shell fixes this: see Comnyang issue found
+    # during Windows/WSL2 manual QA.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
         if [ ! -f /data/comnyang.db ]; then
-          echo 'Bootstrapping database from schema.sql...';
-          sqlite3 /data/comnyang.db < /sql/schema.sql;
-          echo 'Done.';
+          echo 'Bootstrapping database from schema.sql...'
+          sqlite3 /data/comnyang.db < /sql/schema.sql
+          echo 'Done.'
         else
-          echo 'Database already exists — skipping init.';
+          echo 'Database already exists — skipping init.'
         fi
-      "
     restart: "no"
 
   # ----------------------------------------------------------------
@@ -112,6 +120,13 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.containers.internal:11434}
       # Dev override: check for rare events every 60s instead of 1h
       - COMNYANG_RARE_EVENT_INTERVAL_SECS=60
-    depends_on:
-      - sqlite-init
+    # No `depends_on` here by design: `cargo check`/`cargo test` never need
+    # a live DB (this codebase uses runtime-checked `sqlx::query()`, never
+    # the compile-time `sqlx::query!()` macro), so there's nothing for
+    # `dev` to actually wait on. A prior version had a hard `depends_on`
+    # on sqlite-init, which meant an unrelated sqlite-init bug (fixed
+    # above) completely blocked `dev` from starting too — that coupling
+    # served no purpose, so it's removed rather than made conditional
+    # (newer depends_on condition/required syntax has inconsistent support
+    # across podman-compose implementations — not worth the risk here).
     restart: unless-stopped
