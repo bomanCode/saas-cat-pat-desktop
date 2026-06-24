@@ -53,13 +53,20 @@ services:
   # run. Subsequent runs skip because the file already exists.
   # ----------------------------------------------------------------
   sqlite-init:
-    image: nouchka/sqlite3:latest
+    # alpine:3.19 — official public image, has /bin/sh built in.
+    # nouchka/sqlite3 was replaced because its ENTRYPOINT=sqlite3
+    # (not a shell), so `sh -c "..."` was parsed as:
+    #   sqlite3 sh -c "..."  →  sqlite3: Error: unknown option: -c
+    image: alpine:3.19
     container_name: comnyang_sqlite_init
     volumes:
       - sqlite_data:/data
       - ./db:/sql:ro,z
+    # apk add sqlite is fast (~1 MB, cached by Podman layer cache).
+    # Idempotent: only initialises the db when the file doesn't exist.
     command: >
       sh -c "
+        apk add --no-cache sqlite > /dev/null 2>&1 &&
         if [ ! -f /data/comnyang.db ]; then
           echo 'Bootstrapping database from schema.sql...';
           sqlite3 /data/comnyang.db < /sql/schema.sql;
