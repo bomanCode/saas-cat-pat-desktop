@@ -1,90 +1,167 @@
-# Comnyang 2.0 — AI Productivity Companion
+# Comnyang 2.0 🐱
 
-A desktop cat companion (Tauri v2 + Rust + React/PixiJS) that lives on your desktop, learns your work rhythm, and grows with you: Pomodoro focus sessions, smart reminders, an AI memory vault, achievements, daily stories, and rare events.
+**AI Desktop Productivity Companion** — Tauri v2 + Rust + React + PixiJS
 
-> **Status:** active MVP build. See [`docs/roadmap.md`](docs/roadmap.md) for what's done vs. in progress, and [`docs/architecture.md`](docs/architecture.md) / [`docs/specification.md`](docs/specification.md) for the full design.
+---
 
-## Tech stack
+## ⚡ Quick Start
 
-| Layer | Choice |
-|---|---|
-| Desktop runtime | Tauri v2 (Rust) |
-| Frontend | React 18 + TypeScript + Vite |
-| Rendering | PixiJS v8 (procedural cat engine — see `src/engine/`) |
-| State | Zustand |
-| Database | SQLite (`sqlx`, migrations in `db/migrations/`) |
-| AI providers | OpenAI / Anthropic Claude / Google Gemini / Ollama (local default) |
-| Cloud Sync (post-MVP) | Supabase + Vercel Functions (planned — see roadmap) |
+### Prerequisites
 
-## Prerequisites
+| Tool | Version | Install |
+|------|---------|---------|
+| Node.js | 24.x | https://nodejs.org |
+| Rust | 1.85+ | https://rustup.rs |
+| WebView2 | latest | Pre-installed on Windows 11 |
 
-- Node.js 18+ and npm
-- Rust (stable) + `cargo` — see [Tauri's prerequisites guide](https://v2.tauri.app/start/prerequisites/) for OS-specific system dependencies (webkit2gtk on Linux, Xcode CLT on macOS, MSVC Build Tools on Windows)
-- (Optional, for AI features) [Ollama](https://ollama.com) running locally, or an API key for OpenAI/Claude/Gemini
-
-## Getting started
+### Development
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-This launches the Vite dev server and the Tauri desktop shell together. The pet window opens by default; the Companion Hub opens from the system tray icon.
+> ⚠️ **IMPORTANT: Run on your OS directly, not inside the Docker/Podman container.**
+>
+> - **Windows** → open PowerShell / Windows Terminal, run commands there
+> - **macOS** → open Terminal, run commands there
+> - **WSL2 on Windows 11** → WSLg must be active (`echo $DISPLAY` should return `:0`)
+>
+> Tauri needs a real display server to open a window. The `comnyang_dev`
+> container is **headless** and only for `cargo check` / `cargo test` / `npm run build`.
 
-### Frontend only (no Rust backend)
+### If you see "Failed to initialize GTK backend"
 
-`src/lib/tauri.ts` falls back to an in-memory mock backend whenever the app isn't running inside Tauri, so you can iterate on UI in a plain browser:
+This means Tauri tried to open a window without a display server. Fix:
 
-```bash
-npm run dev
+**On Windows:** Use PowerShell/cmd, not WSL2
+```powershell
+cd C:\path\to\saas-cat-pat-desktop
+npm run tauri dev
 ```
 
-## Testing
-
+**On WSL2 (Windows 11):** Make sure WSLg is running
 ```bash
-npm run typecheck     # tsc --noEmit
-npm run test          # vitest — pure engine/state-machine/physics logic
-cd src-tauri && cargo test   # Rust unit tests — services, repeat-rule resolution, XP formula, etc.
+echo $DISPLAY        # must show :0
+echo $WAYLAND_DISPLAY # must show wayland-0
+
+# If empty → fix WSLg:
+# In PowerShell: wsl --update && wsl --shutdown
+# Then reopen WSL2 terminal
 ```
 
-Rust tests use an in-memory SQLite pool (`db::init_test_pool`), so they don't touch your real app data and don't require a display/GUI.
+---
 
-## Building for production
+## 🐳 Dev Container (Podman / Docker)
+
+The container is for headless CI tasks only:
 
 ```bash
+# Start container
+podman-compose up -d --build   # first run (builds image ~5 min)
+podman-compose up -d           # subsequent runs
+
+# Run tasks inside container
+podman exec -it comnyang_dev bash
+
+# Inside container:
+cargo check          # ✅ verify Rust compiles
+cargo fmt --check    # ✅ formatting check
+cargo clippy         # ✅ linter
+cargo test           # ✅ unit tests
+npm run typecheck    # ✅ TypeScript check
+npm run test         # ✅ Vitest
+npm run build        # ✅ Vite production build
+
+# ❌ DO NOT run inside container:
+npm run tauri dev    # needs display server
+npm run tauri build  # needs OS-native bundle tools
+```
+
+---
+
+## 🏗️ Project Structure
+
+```
+saas-cat-pat-desktop/
+├── src/                    # React + TypeScript frontend
+│   ├── engine/             # PixiJS cat engine (F01-F03)
+│   ├── components/         # UI components (Hub, Pomodoro, etc.)
+│   ├── state/              # Zustand stores
+│   ├── hooks/              # React hooks
+│   └── lib/                # Tauri IPC wrapper + utilities
+├── src-tauri/              # Rust backend (Tauri v2)
+│   ├── src/
+│   │   ├── commands/       # Tauri IPC command handlers
+│   │   ├── services/       # Business logic (mood, xp, pomodoro...)
+│   │   ├── integrations/   # AI providers, window watcher, notifier
+│   │   └── db/             # SQLite schema + models
+│   └── icons/              # App icons (all sizes)
+├── db/
+│   └── schema.sql          # SQLite schema (source of truth)
+├── docs/
+│   ├── architecture.md     # System design
+│   └── specification.md    # Feature requirements
+├── Dockerfile.dev          # Dev container (headless, CI tasks only)
+├── podman-compose.yml      # Container orchestration
+├── qa-manual-checklist.md  # Manual QA checklist
+├── release-checklist.md    # Release runbook
+└── .env.example            # Environment variable template
+```
+
+---
+
+## 🧪 Running Tests
+
+```bash
+# Frontend
+npm run typecheck   # TypeScript
+npm run test        # Vitest unit tests
+
+# Rust (requires Rust 1.85+)
+cd src-tauri
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all-features
+```
+
+---
+
+## 🚀 Building for Release
+
+See [`release-checklist.md`](release-checklist.md) for the full runbook.
+
+```bash
+# Windows installer (.msi + .exe)
 npm run tauri build
+
+# Output:
+# src-tauri/target/release/bundle/msi/Comnyang_*.msi
+# src-tauri/target/release/bundle/nsis/Comnyang_*-setup.exe
 ```
 
-Produces platform-native installers (`.msi`/`.exe` on Windows, `.dmg`/`.app` on macOS, `.deb`/`.AppImage` on Linux) in `src-tauri/target/release/bundle/`. See [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) before shipping a release.
+---
 
-## Project structure
+## 📋 QA & DevOps
 
-```
-src/                  React + PixiJS frontend
-  engine/             F01-F03: pure, unit-tested cat behavior/eye-follow/physics logic + Pixi render layer
-  components/         Pet window + Companion Hub UI
-  state/              Zustand stores (one per bounded context)
-  lib/tauri.ts         Typed IPC client (+ in-browser mock for UI dev)
-src-tauri/            Rust backend
-  src/services/       Business logic (XP, mood, pomodoro, reminders, achievements, ...) — Tauri-independent, unit-tested
-  src/commands/       Thin Tauri IPC handlers
-  src/integrations/   Window watcher (F09/F10), notifications, AI provider adapters
-db/                   SQLite schema + sqlx migrations
-docs/                 Architecture, specification, roadmap, GitHub issue backlog
-scripts/              Repo automation (e.g. bulk-creating GitHub issues from docs/github_issues.md)
-```
+| File | Purpose |
+|------|---------|
+| [`qa-manual-checklist.md`](qa-manual-checklist.md) | 100+ manual test items per feature |
+| [`release-checklist.md`](release-checklist.md) | Pre-build → build → sign → publish |
+| [`.env.example`](.env.example) | All environment variables with docs |
+| [`podman-compose.yml`](podman-compose.yml) | Dev container setup |
 
-## Environment variables
+---
 
-Only needed for optional features — the app runs fully offline without any of these.
+## 📐 Tech Stack
 
-| Variable | Used for |
-|---|---|
-| `POSTHOG_API_KEY`, `POSTHOG_HOST` | Analytics (Rust-side flush loop; no-ops if unset) |
-| `COMNYANG_RARE_EVENT_INTERVAL_SECS` | Override the F14 rare-event roll cadence for QA (default: 3600) |
-
-AI provider API keys (OpenAI/Claude/Gemini) are stored in the OS keychain via the `keyring` crate, not as environment variables — set them from the Settings panel in the Companion Hub.
-
-## License
-
-TBD — add your chosen license here before public release.
+| Layer | Technology |
+|-------|-----------|
+| Desktop runtime | Tauri v2 |
+| Backend | Rust |
+| Frontend | React 18 + TypeScript |
+| Animation | PixiJS v8 |
+| State | Zustand |
+| Database | SQLite (via sqlx) |
+| Build | Vite 5 |
+| CI | GitHub Actions |
