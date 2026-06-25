@@ -69,7 +69,8 @@ pub fn get_api_key(provider: &str) -> Option<String> {
 pub fn delete_api_key(provider: &str) -> AppResult<()> {
     if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, provider) {
         // A missing entry is not an error — "delete" is idempotent.
-        let _ = entry.delete_credential();
+        // keyring v2 API: delete_password() (renamed to delete_credential() in v3)
+        let _ = entry.delete_password();
     }
     Ok(())
 }

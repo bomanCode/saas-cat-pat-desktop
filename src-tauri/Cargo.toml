@@ -24,7 +24,7 @@ rand = "0.8"
 thiserror = "1"
 anyhow = "1"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 keyring = "2"
 dirs = "5"
 async-trait = "0.1"
