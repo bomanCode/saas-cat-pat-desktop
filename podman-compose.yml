@@ -53,29 +53,28 @@ services:
   # run. Subsequent runs skip because the file already exists.
   # ----------------------------------------------------------------
   sqlite-init:
-    image: nouchka/sqlite3:latest
+    # alpine:3.19 — official public image, has /bin/sh built in.
+    # nouchka/sqlite3 was replaced because its ENTRYPOINT=sqlite3
+    # (not a shell), so `sh -c "..."` was parsed as:
+    #   sqlite3 sh -c "..."  →  sqlite3: Error: unknown option: -c
+    image: alpine:3.19
     container_name: comnyang_sqlite_init
     volumes:
       - sqlite_data:/data
       - ./db:/sql:ro,z
-    # IMPORTANT: nouchka/sqlite3's image ENTRYPOINT is `sqlite3` itself, not
-    # a shell. Without this override, `command: sh -c "..."` was being run
-    # as `sqlite3 sh -c "..."` — i.e. "sh" was treated as the database
-    # filename and "-c" as an (invalid) sqlite3 flag, crashing immediately
-    # with `sqlite3: Error: unknown option: -c` (Exited 1), which then
-    # blocked the `dev` service via `depends_on` below. Overriding the
-    # entrypoint to an actual shell fixes this: see Comnyang issue found
-    # during Windows/WSL2 manual QA.
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
+    # apk add sqlite is fast (~1 MB, cached by Podman layer cache).
+    # Idempotent: only initialises the db when the file doesn't exist.
+    command: >
+      sh -c "
+        apk add --no-cache sqlite > /dev/null 2>&1 &&
         if [ ! -f /data/comnyang.db ]; then
-          echo 'Bootstrapping database from schema.sql...'
-          sqlite3 /data/comnyang.db < /sql/schema.sql
-          echo 'Done.'
+          echo 'Bootstrapping database from schema.sql...';
+          sqlite3 /data/comnyang.db < /sql/schema.sql;
+          echo 'Done.';
         else
-          echo 'Database already exists — skipping init.'
+          echo 'Database already exists — skipping init.';
         fi
+      "
     restart: "no"
 
   # ----------------------------------------------------------------
@@ -124,9 +123,10 @@ services:
     # a live DB (this codebase uses runtime-checked `sqlx::query()`, never
     # the compile-time `sqlx::query!()` macro), so there's nothing for
     # `dev` to actually wait on. A prior version had a hard `depends_on`
-    # on sqlite-init, which meant an unrelated sqlite-init bug (fixed
-    # above) completely blocked `dev` from starting too — that coupling
-    # served no purpose, so it's removed rather than made conditional
-    # (newer depends_on condition/required syntax has inconsistent support
-    # across podman-compose implementations — not worth the risk here).
+    # on sqlite-init, which meant an unrelated sqlite-init bug completely
+    # blocked `dev` from starting too (and reportedly caused a hung
+    # dependency-wait requiring Ctrl+C in at least one podman-compose run)
+    # — that coupling served no purpose, so it's removed entirely rather
+    # than made conditional (newer depends_on condition/required syntax
+    # has inconsistent support across podman-compose implementations).
     restart: unless-stopped
